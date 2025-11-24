@@ -1,0 +1,516 @@
+function varargout = GUIklt(varargin)
+% GUIKLT MATLAB code for GUIklt.fig
+%      GUIKLT, by itself, creates a new GUIKLT or raises the existing
+%      singleton*.
+%
+%      H = GUIKLT returns the handle to a new GUIKLT or the handle to
+%      the existing singleton*.
+%
+%      GUIKLT('CALLBACK',hObject,eventData,handles,...) calls the local
+%      function named CALLBACK in GUIKLT.M with the given input arguments.
+%
+%      GUIKLT('Property','Value',...) creates a new GUIKLT or raises the
+%      existing singleton*.  Starting from the left, property value pairs are
+%      applied to the GUI before GUIklt_OpeningFcn gets called.  An
+%      unrecognized property name or invalid value makes property application
+%      stop.  All inputs are passed to GUIklt_OpeningFcn via varargin.
+%
+%      *See GUI Options on GUIDE's Tools menu.  Choose "GUI allows only one
+%      instance to run (singleton)".
+%
+% See also: GUIDE, GUIDATA, GUIHANDLES
+
+% Edit the above text to modify the response to help GUIklt
+
+% Last Modified by GUIDE v2.5 15-Nov-2022 19:02:04
+
+% Begin initialization code - DO NOT EDIT
+gui_Singleton = 1;
+gui_State = struct('gui_Name',       mfilename, ...
+    'gui_Singleton',  gui_Singleton, ...
+    'gui_OpeningFcn', @GUIklt_OpeningFcn, ...
+    'gui_OutputFcn',  @GUIklt_OutputFcn, ...
+    'gui_LayoutFcn',  [] , ...
+    'gui_Callback',   []);
+if nargin && ischar(varargin{1})
+    gui_State.gui_Callback = str2func(varargin{1});
+end
+
+if nargout
+    [varargout{1:nargout}] = gui_mainfcn(gui_State, varargin{:});
+else
+    gui_mainfcn(gui_State, varargin{:});
+end
+% End initialization code - DO NOT EDIT
+
+% PROBLEMS
+% - if you change the number of points and then call test_klt, it will run
+% with the old values. Running find points does work.
+
+function GUIklt_OpeningFcn(hObject, eventdata, handles, varargin)
+handles.output = hObject;
+guidata(hObject, handles);
+
+set(handles.figure1,'toolbar','figure');
+
+prm.minDist=20;
+prm.maxFeatures=500;
+prm.mask=0;
+prm.pyramidLevel=3;
+prm.winSize=8;
+prm.dt=1;
+prm.method=1;
+prm.removedrift=0;
+prm.maxIteration=20;
+prm.threshold=0.1;
+prm.auto=0;
+
+p = inputParser;
+addRequired(p, 'Directory', @isstr);
+addParameter(p, 'SaveDir', pwd, @isstr);
+addParameter(p, 'Parameters', prm, @isstruct);
+addParameter(p, 'num', 1);
+parse(p, varargin{:});
+
+handles.curdir = p.Results.Directory;
+handles.savedir = p.Results.SaveDir;
+handles.param = p.Results.Parameters;
+handles.list = listTiffs(handles.curdir);
+handles.num=p.Results.num;
+if handles.param.stack
+    handles.savename =  handles.list{handles.num}(1:end-4); 
+    set(handles.text_curdir,'String',num2str(handles.savename));
+else
+
+fl = regexp(handles.curdir(1:end-1),filesep);
+handles.savename = handles.curdir(fl(end)+1:end-1);
+set(handles.text_curdir,'String',num2str(handles.curdir));
+
+end
+handles.stop_now=0;
+set(handles.pushbutton_stop, 'enable', 'off');
+
+set(handles.edit_mindist,'String',num2str(handles.param.minDist));
+set(handles.edit_maxfeatures,'String',num2str(handles.param.maxFeatures));
+set(handles.edit_mask,'String',num2str(handles.param.mask));
+set(handles.edit_pyramidlevel,'String',num2str(handles.param.pyramidLevel));
+set(handles.edit_winsize,'String',num2str(handles.param.winSize));
+set(handles.edit_dt,'String',num2str(handles.param.dt));
+set(handles.edit_method,'String',num2str(handles.param.method));
+set(handles.edit_removedrift,'String',num2str(handles.param.removedrift));
+set(handles.edit_maxiteration,'String',num2str(handles.param.maxIteration));
+set(handles.edit_threshold,'String',num2str(handles.param.threshold));
+
+% other
+handles.param.excludeEqualPoints = 1;
+handles.param.blurRadius = -1;
+
+if handles.param.auto == 1
+    pushbutton_runklt_Callback(hObject, eventdata, handles);
+    %    drawnow;
+    handles.closeFigure = true;
+     guidata(hObject, handles);
+else
+ guidata(hObject, handles);
+ uiwait(handles.figure1);
+end
+
+
+function varargout = GUIklt_OutputFcn(hObject, eventdata, handles)
+varargout{1} = handles.output;
+varargout{2} = handles.param;
+delete(handles.figure1)
+
+function figure1_CloseRequestFcn(hObject, eventdata, handles)
+if isequal(get(hObject, 'waitstatus'), 'waiting')
+% The GUI is still in UIWAIT, us UIRESUME
+uiresume(hObject);
+else
+% The GUI is no longer waiting, just close it
+delete(hObject);
+end
+%% edit boxes
+function edit_pyramidlevel_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+function edit_pyramidlevel_Callback(hObject, eventdata, handles)
+input = str2double(get(hObject,'string'));
+if isnan(input)
+    errordlg('You must enter a numeric value','Invalid Input','modal')
+    uicontrol(hObject)
+    return
+else
+    handles.param.pyramidLevel = input;
+end
+guidata(hObject, handles);
+
+function edit_winsize_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+function edit_winsize_Callback(hObject, eventdata, handles)
+input = str2double(get(hObject,'string'));
+if isnan(input)
+    errordlg('You must enter a numeric value','Invalid Input','modal')
+    uicontrol(hObject)
+    return
+else
+    handles.param.winSize = input;
+end
+guidata(hObject, handles);
+
+function edit_dt_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+function edit_dt_Callback(hObject, eventdata, handles)
+input = str2double(get(hObject,'string'));
+if isnan(input)
+    errordlg('You must enter a numeric value','Invalid Input','modal')
+    uicontrol(hObject)
+    return
+else
+    handles.param.dt = input;
+end
+guidata(hObject, handles);
+
+function edit_removedrift_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+function edit_removedrift_Callback(hObject, eventdata, handles)
+input = str2double(get(hObject,'string'));
+if isnan(input)
+    errordlg('You must enter a numeric value','Invalid Input','modal')
+    uicontrol(hObject)
+    return
+else
+    handles.param.removedrift = input;
+end
+guidata(hObject, handles);
+
+function edit_maxiteration_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+function edit_maxiteration_Callback(hObject, eventdata, handles)
+input = str2double(get(hObject,'string'));
+if isnan(input)
+    errordlg('You must enter a numeric value','Invalid Input','modal')
+    uicontrol(hObject)
+    return
+else
+    handles.param.maxIteration = input;
+end
+guidata(hObject, handles);
+
+function edit_threshold_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+function edit_threshold_Callback(hObject, eventdata, handles)
+input = str2double(get(hObject,'string'));
+if isnan(input)
+    errordlg('You must enter a numeric value','Invalid Input','modal')
+    uicontrol(hObject)
+    return
+else
+    handles.param.threshold = input;
+end
+guidata(hObject, handles);
+
+function edit_mindist_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+function edit_mindist_Callback(hObject, eventdata, handles)
+input = str2double(get(hObject,'string'));
+if isnan(input)
+    errordlg('You must enter a numeric value','Invalid Input','modal')
+    uicontrol(hObject)
+    return
+else
+    handles.param.minDist = input;
+end
+guidata(hObject, handles);
+
+function edit_maxfeatures_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+function edit_maxfeatures_Callback(hObject, eventdata, handles)
+input = str2double(get(hObject,'string'));
+if isnan(input)
+    errordlg('You must enter a numeric value','Invalid Input','modal')
+    uicontrol(hObject)
+    return
+else
+    handles.param.maxFeatures = input;
+end
+guidata(hObject, handles);
+
+function edit_mask_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+function edit_mask_Callback(hObject, eventdata, handles)
+input = str2double(get(hObject,'string'));
+if isnan(input)
+    errordlg('You must enter a numeric value','Invalid Input','modal')
+    uicontrol(hObject)
+    return
+else
+    handles.param.mask = input;
+end
+guidata(hObject, handles);
+
+function edit_method_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+function edit_method_Callback(hObject, eventdata, handles)
+input = str2double(get(hObject,'string'));
+if isnan(input)
+    errordlg('You must enter a numeric value','Invalid Input','modal')
+    uicontrol(hObject)
+    return
+else
+    handles.param.method = input;
+end
+guidata(hObject, handles);
+
+%% what is this?
+function mdisp_Callback(hObject, eventdata, handles)
+
+function mdisp_CreateFcn(hObject, eventdata, handles)
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+%% pushbuttons
+function pushbutton_testpoints_Callback(hObject, eventdata, handles)
+handles.t1 = 1;
+handles.t2 = 2;
+handles = loadimages(handles);
+handles = findpoints(handles);
+guidata(hObject, handles);
+
+function pushbutton_testklt_Callback(hObject, eventdata, handles)
+tic
+oldpointer = get(handles.figure1, 'pointer');
+set(handles.figure1, 'pointer', 'watch'); drawnow;
+
+handles.t1 = 1;
+handles.t2 = 1 + handles.param.dt;
+handles = loadimages(handles);
+handles = findpoints(handles);
+handles = makepyramid(handles);
+handles = klt(handles);
+
+set(handles.figure1, 'pointer', oldpointer); drawnow;
+set(handles.text_comptime, 'String', num2str(toc));
+set(handles.mdisp,'String', num2str(handles.med));
+
+guidata(hObject, handles);
+
+function pushbutton_runklt_Callback(hObject, eventdata, handles)
+set(handles.pushbutton_runklt, 'enable', 'off');
+set(handles.pushbutton_stop, 'enable', 'on');
+update_waitbar(handles,0);
+if handles.param.stack
+    infof=imfinfo ([handles.curdir handles.list{handles.num}]);
+    handles.tfin = length(infof);
+else
+handles.tfin = length([handles.list]);
+
+end
+if handles.param.method == 0
+    I2 = 1 + handles.param.dt : handles.param.dt : handles.tfin;
+    I1 = ones(1, length(I2));
+elseif handles.param.method == 1
+    I2 = 1 + handles.param.dt : 1 : handles.tfin;
+    I1 = 1 : 1 : handles.tfin - handles.param.dt;
+end
+   tic
+for i = 1 : length (I1)
+    if(~handles.stop_now)
+    disp([num2str(i) '|' num2str(length(I1))])
+    handles.i = i;
+    handles.t1 = I1(i);
+    handles.t2 = I2(i);
+    
+    handles = loadimages(handles);
+    handles = findcontraction(handles, 10);
+    if handles.param.method == 1 || i == 1
+        handles = findpoints(handles);
+    end
+    handles = makepyramid(handles);
+    handles = klt(handles);
+    handles = outputdata(handles);
+    
+    update_waitbar(handles,(handles.i/length(I1)));
+    guidata(hObject, handles);
+    end
+end
+toc
+guidata(hObject, handles);
+
+results = handles.results;
+param = handles.param;
+save([handles.savedir handles.savename '_' int2str(param.loc_cov) '_results.mat'],'results');
+save([handles.savedir handles.savename '_' int2str(param.loc_cov) '_param.mat'],'param');
+hgexport(handles.figure1,[handles.savedir handles.savename '_' int2str(param.loc_cov) '_results.png'],hgexport('factorystyle'),'Format','png');
+
+handles.closeFigure = true;
+ uiresume(handles.figure1);
+guidata(hObject, handles);
+
+function pushbutton_stop_Callback(hObject, eventdata, handles)
+handles.stop_now = 1;
+handles.closeFigure = true;
+guidata(hObject, handles);
+%delete(handles.figure1);
+
+%%
+%%%%%%%%%% MY FUCNTIONS %%%%%%%%%%
+
+
+function handles = loadimages(handles)
+if handles.param.stack
+    filename = [handles.curdir handles.list{handles.num}];
+    im1 = double(imread(filename,handles.t1));
+    im1=im1(2:end,:);
+else
+filename = [handles.curdir handles.list{handles.t1}];
+im1 = double(imread(filename));
+im1=im1(2:end,:);
+end
+im1(:,:) = im1(:,:) - mean2(im1(:,:));
+handles.im1 = im1;
+if handles.param.stack
+    filename = [handles.curdir handles.list{handles.num}];
+    im2 = double(imread(filename,handles.t2));
+    im2=im2(2:end,:);
+else
+filename = [handles.curdir handles.list{handles.t2}];
+im2 = double(imread(filename));
+im2=im2(2:end,:);
+end
+im2(:,:) = im2(:,:) - mean2(im2(:,:));
+handles.im2 = im2;
+
+function handles=findcontraction(handles, kernel_size)
+if handles.param.stack
+    filename = [handles.curdir handles.list{handles.num}];
+    im1 = double(imread(filename,handles.t2-1));
+    im1=im1(2:end,:);
+else
+filename = [handles.curdir handles.list{handles.t1}];
+im1 = double(imread(filename));
+im1=im1(2:end,:);
+end
+if handles.param.stack
+    filename = [handles.curdir handles.list{handles.num}];
+    im2 = double(imread(filename,handles.t2));
+    im2=im2(2:end,:);
+else
+filename = [handles.curdir handles.list{handles.t2}];
+im2 = double(imread(filename));
+im2=im2(2:end,:);
+end
+im_delta = im2-im1;
+%im_delta     = stdfilt(im_delta, true(kernel_size*2+1));
+handles.im_delta = im_delta;%.^2;
+
+function handles=findpoints(handles)
+
+[ptst(:,1), ptst(:,2)] = localMaximum_h(handles.im1, handles.param.minDist, handles.param.excludeEqualPoints, handles.param.maxFeatures);
+
+
+if handles.param.mask == 1
+
+    load([handles.savedir handles.savename '_mask.mat']);
+%     figure
+%     imagesc(mask)
+%     pause
+    ind = sub2ind(size(mask), ptst(:,1), ptst(:,2));
+    ind2 = mask(ind)>0;
+    pts(:,:) = ptst(ind2,:);
+else
+    pts(:,:)=ptst(:,:);
+end
+set(handles.text_npoints, 'String', num2str(length(pts)));
+handles.pts=pts;
+
+%%%%%%%%%
+imshow(handles.im1,[],'parent',handles.axes_points);
+hold(handles.axes_points,'on');
+plot(handles.pts(:,2), handles.pts(:,1),'.r','parent',handles.axes_points);
+hold(handles.axes_points,'off');
+%%%%%%%%%
+
+function handles = makepyramid(handles)
+WindowSize = repmat(handles.param.winSize,handles.param.pyramidLevel,1);
+handles.pyr1 = makePyramid_2D(handles.im1,handles.param.pyramidLevel,handles.param.blurRadius,WindowSize);
+handles.pyr2 = makePyramid_2D(handles.im2,handles.param.pyramidLevel,handles.param.blurRadius,WindowSize);
+
+function handles = klt(handles)
+WindowSize = repmat(handles.param.winSize,handles.param.pyramidLevel,1);
+MaxIteration = repmat(handles.param.maxIteration,1,handles.param.pyramidLevel);
+Threshold = repmat(handles.param.threshold,1,handles.param.pyramidLevel);
+
+if handles.param.gpu==0
+[handles.sp, conver, handles.err] = pyrLK_2D(handles.pyr1,handles.pyr2,handles.pts,WindowSize,MaxIteration,Threshold);
+else
+    [handles.sp, conver, handles.err] = pyrLK_2Dgpu(handles.pyr1,handles.pyr2,handles.pts,WindowSize,MaxIteration,Threshold);
+end
+handles.conver = prod(conver,2)>0;
+%sum(handles.conver)
+handles.med=nanmedian(sqrt(handles.sp(handles.conver,1).^2+handles.sp(handles.conver,2).^2));
+
+%%%%%%%%%%
+imshow(handles.im1,[],'parent',handles.axes_vectors);
+hold(handles.axes_vectors,'on');
+%quiver(handles.pts(:, 2), handles.pts(:,1), handles.sp(:,2), handles.sp(:,1), 5, 'Color', [1 0 0], 'LineWidth', 1, 'parent', handles.axes_vectors);
+%quiver(handles.pts(handles.conver, 2), handles.pts(handles.conver,1), handles.sp(handles.conver,2), handles.sp(handles.conver,1), 5, 'Color', [0.1 0.8 0.1], 'parent', handles.axes_vectors);
+text(10, 24, [num2str(handles.t1) ' - ' num2str(handles.t2)],'Color','w','FontSize',14); drawnow;
+hold(handles.axes_vectors,'off');
+%%%%%%%%%%
+
+if handles.param.removedrift == 1
+    handles.sp(:,2) = handles.sp(:,2) - mean(handles.sp(:,2));
+    handles.sp(:,1) = handles.sp(:,1) - mean(handles.sp(:,1));
+    %%%%%%%%%%
+    hold(handles.axes_vectors,'on');
+    quiver(handles.pts(handles.conver,2),handles.pts(handles.conver,1),handles.sp(handles.conver,2),handles.sp(handles.conver,1),5,'m','parent',handles.axes_vectors);
+    hold(handles.axes_vectors,'off');
+    %%%%%%%%%%
+end
+
+function handles=outputdata(handles)
+handles.results(handles.i).pts1 = handles.pts;
+handles.results(handles.i).pts2 = handles.pts + handles.sp;
+handles.results(handles.i).sp = handles.sp;
+handles.results(handles.i).err = handles.err;
+handles.results(handles.i).conver = handles.conver;
+handles.results(handles.i).var = handles.im_delta;
+
+function update_waitbar(handles,value)
+%h=handles.axes_waitbar;set(h,'Visible','On');
+%axes(h);cla;h=patch([0,value,value,0],[0,0,1,1],'b');
+%axis([0,1,0,1]);axis off;drawnow;
+
+set(handles.axes_waitbar,'Visible','On');
+patch([0,value,value,0],[0,0,1,1],'g','Parent',handles.axes_waitbar);
+set(handles.axes_waitbar,'xLim',[0 1],'yLim',[0 1]);
+
+
+% --- Executes on button press in done.
+function done_Callback(hObject, eventdata, handles)
+% hObject    handle to done (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+handles.closeFigure = true;
+guidata(hObject, handles);
