@@ -128,11 +128,11 @@ classdef PeriodicSignalsModel < handle
             
             if ~isempty(varargin)
                 Var=varargin{1};
-                [pk,locs] = findpeaks(Var, 'MinPeakProminence',0.5*max(Var-min(Var)));
+                [pk,ind_max] = findpeaks(Var(10:end), '');
 
-                figure;plot(Var);hold on;scatter(locs(1),pk(1), 'r+');scatter(locs(2),pk(2), 'g+');pause;close
-                xCenterMedian = median(PS.Position(:, locs(1):locs(2), 1),2);
-                yCenterMedian = median(PS.Position(:, locs(1):locs(2), 2),2);
+                %figure;plot(Var);hold on;scatter(ind_max+9,pk, 'r+');scatter(ind_max,Var(ind_max), 'g+');pause;close
+                xCenterMedian = median(PS.Position(:, ind_max:ind_max+9, 1),2);
+                yCenterMedian = median(PS.Position(:, ind_max:ind_max+9, 2),2);
                 PS.Center = [xCenterMedian, yCenterMedian];
                 PS.xPosition = PS.Position(:, :, 1) - PS.Center(:, 1);
                 PS.yPosition = PS.Position(:, :, 2) - PS.Center(:, 2);
@@ -162,7 +162,7 @@ classdef PeriodicSignalsModel < handle
                     
                     PS.xPosition(p, :) = PS.Position(p, :, 1) - PS.Center(p, 1);
                     PS.yPosition(p, :) = PS.Position(p, :, 2) - PS.Center(p, 2);
-                    %PS.Angle(p) = median(atan2(PS.yPosition(p, ~PS.wel(p, :)), PS.xPosition(p, ~PS.wel(p, :))));
+                    PS.Angle(p) = median(atan2(PS.yPosition(p, ~PS.wel(p, :)), PS.xPosition(p, ~PS.wel(p, :))));
                     u(1)=cos(PS.Angle(p));
                     u(2)=sin(PS.Angle(p));
                     PS.Amplitude(p, :) = sqrt((PS.Position(p, :, 1) - PS.Center(p, 1)).^2 + (PS.Position(p,:, 2) - PS.Center(p, 2)).^2);

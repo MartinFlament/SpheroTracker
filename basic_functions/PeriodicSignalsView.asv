@@ -231,14 +231,13 @@ classdef PeriodicSignalsView < handle
                     pas=10;
         [X,Y]=meshgrid(1:pas:max(view.PS.Center(:,1)),1:pas:max(view.PS.Center(:,2)));
         
-        FP=scatteredInterpolant(view.PS.Center(view.PS.signalarea',1),view.PS.Center(view.PS.signalarea',2),view.PS.PhaseShift(view.PS.signalarea)');
+        FP=scatteredInterpolant(view.PS.Center(view.PS.signalarea,2),view.PS.Center(view.PS.signalarea,1),view.PS.PhaseShift(view.PS.signalarea)');
         FP.Method='nearest';
         FP.ExtrapolationMethod='none';
     
-        PHASE=FP(X,Y)';
+        PHASE=FP(X,Y);
         figure;
-        h = imagesc(PHASE);
-        set(h, 'AlphaData', ~isnan(PHASE));
+        imagesc(PHASE)
         colorbar
         axis equal
         axis off
@@ -252,14 +251,13 @@ classdef PeriodicSignalsView < handle
                     pas=10;
         [X,Y]=meshgrid(1:pas:max(view.PS.Center(:,1)),1:pas:max(view.PS.Center(:,2)));
         
-        FP=scatteredInterpolant(view.PS.Center(view.PS.signalarea',1),view.PS.Center(view.PS.signalarea',2),view.PS.FourierAmplitude(view.PS.signalarea)');
+        FP=scatteredInterpolant(view.PS.Center(view.PS.signalarea,2),view.PS.Center(view.PS.signalarea,1),view.PS.FourierAmplitude(view.PS.signalarea)');
         FP.Method='nearest';
         FP.ExtrapolationMethod='none';
     
-        AMP=FP(X,Y)';
+        AMP=FP(X,Y);
         figure;
-        h = imagesc(AMP);
-        set(h, 'AlphaData', ~isnan(AMP));
+        imagesc(AMP)
         colorbar
         axis equal
         axis off
@@ -299,13 +297,11 @@ classdef PeriodicSignalsView < handle
             end
         end
         
-        function Strain(view, varargin)
-            pas = 10;
-            [X,Y]=meshgrid(1:pas:max(view.PS.Center(:,1)),1:pas:max(view.PS.Center(:,2)));
-            [pksp, locsp] = findpeaks(nanmedian(abs(view.PS.Strain.Pressure),1), 'SortStr','descend');
-                        
-            ux=griddata(view.PS.Center(:,1),view.PS.Center(:,2),view.PS.xPosition(:,locsp(1)),X,Y,'cubic');
-            uy=griddata(view.PS.Center(:,1),view.PS.Center(:,2),view.PS.yPosition(:,locsp(1)),X,Y,'cubic');
+        function Pressure(view, varargin)
+            [pkss, locss] = findpeaks(nanmedian(abs(view.PS.Strain.Shear),1), 'SortStr','descend');
+            
+            ux=griddata(PS.Center(:,1),PS.Center(:,2),PS.xPosition(:,locsp(1)),X,Y,'cubic');
+                uy=griddata(PS.Center(:,1),PS.Center(:,2),PS.yPosition(:,locsp(1)),X,Y,'cubic');
             [epsxx,epsxy]=gradientN_h2(ux,'optimal5',0.1);   
                     [epsyx,epsyy]=gradientN_h2(uy,'optimal5',0.1);
                 
@@ -314,23 +310,16 @@ classdef PeriodicSignalsView < handle
                     epsyy(isnan(epsyy)) = 0;
                     epsxy(isnan(epsxy)) = 0;
                     [vec, Dt, Pc] = arrayfun(@eigenstrain2Df,epsxx,epsyy,epsxy,'UniformOutput',0); %Pc composante symétrique Dt valeur propre (shear)
-                    P=cell2mat(Pc)'; 
+                    P=cell2mat(Pc); 
                 figure;
                 clim = max(abs(P), [], 'all');
             scale = (-clim):2*clim/sum(P~=0, 'all'):clim;
             map = turbo(length(scale));
-            h = imagesc(P);
-            set(h, 'AlphaData', P~=0);
+            imagesc(P.*ind_mask)
             colormap(map)
-            colorbar
-            set(gca, 'Clim', [-clim clim])
             set(gca,'Ydir','reverse')
-            axis equal
-            axis off
-            saveas(gca,[view.SaveFolder,view.SaveFileName,'_pressure_sign.png'])
+            saveas(gca,[dossier,nom(1:end-12),'_pressure_sign.png'])
             close
-        end
-
         function PeaksValleysSignal(view,varargin)
                 p = inputParser;
 

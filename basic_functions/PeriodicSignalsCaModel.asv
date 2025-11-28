@@ -14,7 +14,6 @@ classdef PeriodicSignalsCaModel < handle
         vecr
         vecmth
         intensr
-        intensth
         Box=50
         vect
         pk1
@@ -153,10 +152,11 @@ classdef PeriodicSignalsCaModel < handle
         end
         
         
-        function PS = MeasureIntensity(PS,varargin)
-            if ~isempty(varargin)
+        function PS = MeasureRadialIntensity(PS,varargin)
+            if~ isempty(varargin)
                 PS.Box=varargin{1};
             end
+            size(PS.R)
             vecr=(0:5:PS.R);
             PS.vect=(0:PS.numim-1)/PS.SamplingFrequency;
             dtheta=PS.Box/2/PS.R;
@@ -170,7 +170,7 @@ classdef PeriodicSignalsCaModel < handle
             for tt=1:PS.numim
                 
                 im=double(imread([PS.PathName,PS.FileName],tt));
-                Global2(tt)=nanmean(im(PS.BW(:)));
+                Global2(tt)=mean(im(PS.BW(:)));
                 cc=1;
                 for r=vecr
                     
@@ -202,12 +202,12 @@ classdef PeriodicSignalsCaModel < handle
                         
                         cc=cc+1;
                     end
+                    
                     intensr(:,tt)=squeeze(nanmean(intens,2));
-
-                    intensth(:,tt)=squeeze(nanmean(intens,1));
+                    
                 end
+                
             end
-            
             for uu=1:size(intensr,1)
                 intensr(uu,:)=detrend(intensr(uu,:),2);
             end
@@ -215,19 +215,9 @@ classdef PeriodicSignalsCaModel < handle
             for ii=1:length(M)
                 intensr(ii,:)=intensr(ii,:)/M(ii);
             end
-
-            for uu=1:size(intensth,1)
-                intensth(uu,:)=detrend(intensth(uu,:),2);
-            end
-            M=max(intensth,[],2);
-            for ii=1:length(M)
-                intensth(ii,:)=intensth(ii,:)/M(ii);
-            end
-            
-            PS.intensth=resize(intensth, [sum(~isnan(intensth), 'all')/size(intensth,2) size(intensth,2)]);
             PS.intensr=intensr;
             PS.Global2=Global2;
-            PS.Global1=nanmean(PS.intensr,1);
+            PS.Global1=mean(PS.intensr,1);
 %             figure
 %             hold on
 %             plot(PS.Global1)
@@ -235,7 +225,81 @@ classdef PeriodicSignalsCaModel < handle
             
             
         end
-       
+        
+        
+        function PS = AngularKymo(PS,varargin)
+            if~ isempty(varargin)
+                PS.Box=varargin{1};
+            end
+            size(PS.R)
+            vecr=(0:5:PS.R);
+            PS.vect=(0:PS.numim-1)/PS.SamplingFrequency;
+            dtheta=PS.Box/2/PS.R;
+            vecmth=0:dtheta:2*pi;
+            
+            intens=nan(length(vecr),length(vecmth));
+            
+            PS.vecr=vecr;
+            PS.vecmth=vecmth;
+            
+            for tt=1:PS.numim
+                
+                im=double(imread([PS.PathName,PS.FileName],tt));
+                Global2(tt)=mean(im(PS.BW(:)));
+                cc=1;
+                for r=vecr
+                    
+                    
+                    if r==0
+                        posrect=[PS.z(2)-PS.Box/2 PS.z(1)-PS.Box/2 PS.Box PS.Box];
+                        imc=imcrop(im,posrect);
+                        
+                        
+                        intens(cc,1)=sum(imc(:));
+                        cc=cc+1;
+                        
+                    else
+                        dtheta=PS.Box/r;
+                        cc2=1;
+                        for theta=0:dtheta:2*pi
+                            cbox=[PS.z(2)+r*cos(theta) PS.z(1)+r*sin(theta)];
+                            posrect=[cbox(1)-PS.Box/2 cbox(2)-PS.Box/2 PS.Box PS.Box];
+                            
+                            imc=imcrop(im,posrect);
+                            
+                            if size(imc)==[PS.Box+1 PS.Box+1]
+                                
+                                intens(cc,cc2)=sum(imc(:));
+                                
+                            end
+                            cc2=cc2+1;
+                        end
+                        
+                        cc=cc+1;
+                    end
+                    
+                    intensr(:,tt)=squeeze(nanmean(intens,2));
+                    
+                end
+                
+            end
+            for uu=1:size(intensr,2)
+                intensr(uu,:)=detrend(intensr(uu,:),1);
+            end
+            M=max(intensr,[],1);
+            for ii=1:length(M)
+                intensr(ii,:)=intensr(ii,:)/M(ii);
+            end
+            PS.intensr=intensr;
+            PS.Global2=Global2;
+            PS.Global1=mean(PS.intensr,2);
+%             figure
+%             hold on
+%             plot(PS.Global1)
+%             plot(detrend(PS.Global2))
+            
+            
+        end
         
         
         function PS = FourierAnalysis(PS, varargin)
@@ -252,8 +316,8 @@ classdef PeriodicSignalsCaModel < handle
             PS.Period=1/PS.fvec(locs(1));
             PS.F=F;
             
-%why hard code 50 this way ?
-            [~,pos]=max(abs(F(50:max(length(F),round(length(F)/2)))));
+            
+            [~,pos]=max(abs(F(50:round(length(F)/2))));
             pk2=pos+49;
             PS.pk2=pk2;
             

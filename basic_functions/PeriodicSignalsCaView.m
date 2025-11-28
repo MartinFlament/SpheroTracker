@@ -138,14 +138,13 @@ classdef PeriodicSignalsCaView < handle
             
             % legend(leg,'Location','eastoutside')
             set(gca, 'Ydir', 'reverse')
-            disp(size(view.PS.intensth))
             set(gca, 'Xlim', [0.5 size(view.PS.intensth, 1)+0.5])
             set(gca, 'Ylim', [0 size(view.PS.intensth, 2)])
             
             set(get(handle(gcf),'JavaFrame'),'Maximized',1);
             %pause
             if sauv
-                saveas(gcf,[view.SaveFolder,view.SaveFileName(1:end-5),'_Angular_intensity.png'])
+                saveas(gcf,[view.SaveFolder,view.SaveFileName,'_Angular_intensity.png'])
                 close
             end
             
@@ -196,10 +195,10 @@ classdef PeriodicSignalsCaView < handle
             hold on
             %yyaxis left
             plot(view.PS.vecr*view.PS.PixelSize,view.PS.phase1)
-            ylabel('$\Phi_1$')
+            ylabel('\Phi_1')
             %yyaxis right
             %plot(view.PS.vecr*view.PS.PixelSize,view.PS.phase2)
-            xlabel('r ($\mu$m)')
+            xlabel('r (\mum)')
             %ylabel('$\Phi_2$')
              set(gca,'Xlim',[0,max(view.PS.vecr*view.PS.PixelSize)])
             %pause
@@ -225,7 +224,7 @@ classdef PeriodicSignalsCaView < handle
             ylabel('Peak Amplitude')
             yyaxis right
             plot(view.PS.vecr*view.PS.PixelSize,view.PS.Intpk1)
-             xlabel('r ($\mu$m)')
+             xlabel('r (\mum)')
              ylabel('Peak Amplitude')
              set(gca,'Xlim',[0,max(view.PS.vecr*view.PS.PixelSize)])
             if sauv
